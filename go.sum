@@ -1,0 +1,14 @@
+github.com/Philipp15b/go-steam v1.0.0 h1:nBGLVJRyDukX9dfcMFKbQbE2g6doh7e/IZFDDP3S9pY=
+github.com/Philipp15b/go-steam v1.0.0/go.mod h1:HuVM+sZFzumUdKPWiz+IlCMb4RdsKdT3T+nQBKL+sYg=
+github.com/Philipp15b/go-steamapi v0.0.0-20210114153316-ec4fdd23b4c1 h1:PD13eMe9XAgPQ0SYWyirqwyOJG90TlEWApCw8A699l0=
+github.com/Philipp15b/go-steamapi v0.0.0-20210114153316-ec4fdd23b4c1/go.mod h1:eQR7Xf64m2ALDAQE7Nr9ylFZhav1izvF3zzysKPhb0I=
+github.com/golang/protobuf v1.5.0/go.mod h1:FsONVRAS9T7sI+LIUmWTfcYkHO4aIWwzhcaSAoJOfIk=
+github.com/golang/protobuf v1.5.3 h1:KhyjKVUg7Usr/dYsdSqoFveMYd5ko72D+zANwlG1mmg=
+github.com/golang/protobuf v1.5.3/go.mod h1:XVQd3VNwM+JqD3oG2Ue2ip4fOMUkwXdXDdiuN0vRsmY=
+github.com/google/go-cmp v0.5.5/go.mod h1:v8dTdLbMG2kIc/vJvl+f65V22dbkXbowE6jgT/gNBxE=
+github.com/solovev/steam_go v0.0.0-20170222182106-48eb5aae6c50 h1:5wu+B07+rk5rr6KYxYK+5fRr+m8ikSblPSgDTdrFUE4=
+github.com/solovev/steam_go v0.0.0-20170222182106-48eb5aae6c50/go.mod h1:wDBDgAJlQWhdrpQeJcw6+FZwMddaNWFUo8u8bSfzA50=
+golang.org/x/xerrors v0.0.0-20191204190536-9bdfabe68543/go.mod h1:I/5z698sn9Ka8TeJc9MKroUUfqBBauWjQqLJ2OPfmY0=
+google.golang.org/protobuf v1.26.0-rc.1/go.mod h1:jlhhOSvTdKEhbULTjvd4ARK9grFBp09yW+WbY/TyQbw=
+google.golang.org/protobuf v1.26.0 h1:bxAC2xTBsZGibn2RTntX0oH50xLsqy1OxA9tTL3p/lk=
+google.golang.org/protobuf v1.26.0/go.mod h1:9q0QmTI4eRPtz6boOQmLYwt+qCgq0jsYwAQnmE0givc=
