@@ -1,6 +1,8 @@
 package main
 
 import (
+	"bytes"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"html/template"
@@ -8,14 +10,13 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
-
-	"github.com/Philipp15b/go-steamapi"
 )
 
 var promptData string
 var templates *template.Template
 
 const appId uint64 = 753
+const contendId uint64 = 6
 const key string = "53487FD6BD8A52B4980A3E099BD5A435"
 const apiUrl string = "http://api.steampowered.com/ISteamUser/ResolveVanityURL/v0001/?key="
 
@@ -43,7 +44,7 @@ func homePage(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		inv, err := steamapi.GetPlayerItems(steamId, appId, key)
+		inv, err := getPlayerItems(steamId, appId, contendId)
 
 		if err != nil {
 			http.Error(w, "Inventory is not accessible", http.StatusBadRequest)
@@ -70,39 +71,23 @@ func convertToSteamID(input string) (uint64, error) {
 	// If it's not a numeric ID, it might be a vanity URL.
 	input = strings.TrimPrefix(input, "https://steamcommunity.com/id/")
 	input = strings.TrimSuffix(input, "/")
+
 	idRequest := apiUrl + key + "&vanityurl=" + input
-	request, err := http.NewRequest("GET", idRequest, nil)
-
+	jason, err := getJson(idRequest)
 	if err != nil {
 		return 0, err
 	}
 
-	request.Header.Set("Content-Type", "application/json; charset=utf-8")
-	client := &http.Client{}
-	response, err := client.Do(request)
-
-	if err != nil {
-		return 0, err
-	}
-
-	responseBody, err := io.ReadAll(response.Body)
-
-	if err != nil {
-		return 0, err
-	}
-	defer response.Body.Close()
-
-	steamId, success := formatJson(responseBody)
+	steamId, success := parseId(jason)
 
 	if success == 42 {
-		return 0, errors.New("steam responded with failure getting user's id")
+		return 0, errors.New("steam responded with failure while getting user's id")
 	}
 
-	fmt.Println(steamId)
 	return steamId, nil
 }
 
-func formatJson(input []byte) (uint64, uint64) {
+func parseId(input []byte) (uint64, uint64) {
 	out := string(input)
 	out = strings.TrimPrefix(out, "{\"response\":{\"steamid\":\"")
 	steamId, err := stringToUint64(out[:16])
@@ -123,4 +108,52 @@ func stringToUint64(input string) (uint64, error) {
 		return 0, err
 	}
 	return uint64(out), nil
+}
+
+func getPlayerItems(steamId uint64, appId uint64, contentId uint64) (string, error) {
+	url := "https://steamcommunity.com/profiles/" + strconv.Itoa(int(steamId)) + "/inventory/json/" + strconv.Itoa(int(appId)) + "/" + strconv.Itoa(int(contentId))
+	inv, err := getJson(url)
+
+	if err != nil {
+		return "", nil
+	}
+
+	return formatJson(inv), nil
+}
+
+func getJson(url string) ([]byte, error) {
+	request, err := http.NewRequest("GET", url, nil)
+
+	if err != nil {
+		return nil, err
+	}
+
+	request.Header.Set("Content-Type", "application/json; charset=utf-8")
+	client := &http.Client{}
+	response, err := client.Do(request)
+
+	if err != nil {
+		return nil, err
+	}
+
+	responseBody, err := io.ReadAll(response.Body)
+
+	if err != nil {
+		return nil, err
+	}
+	defer response.Body.Close()
+
+	return responseBody, nil
+}
+
+func formatJson(data []byte) string {
+	var out bytes.Buffer
+	err := json.Indent(&out, data, "", " ")
+
+	if err != nil {
+		fmt.Println(err)
+	}
+
+	d := out.Bytes()
+	return string(d)
 }
