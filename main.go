@@ -15,10 +15,12 @@ import (
 var promptData string
 var templates *template.Template
 
-const appId uint64 = 753
-const contendId uint64 = 6
-const key string = "53487FD6BD8A52B4980A3E099BD5A435"
-const apiUrl string = "http://api.steampowered.com/ISteamUser/ResolveVanityURL/v0001/?key="
+const (
+	appId     uint64 = 753
+	contendId uint64 = 6
+	key       string = "53487FD6BD8A52B4980A3E099BD5A435"
+	apiUrl    string = "http://api.steampowered.com/ISteamUser/ResolveVanityURL/v0001/?key=%s&vanityurl=%s"
+)
 
 func main() {
 	templates = template.Must(template.ParseFiles("templates/index.html"))
@@ -61,7 +63,7 @@ func homePage(w http.ResponseWriter, r *http.Request) {
 func convertToSteamID(input string) (uint64, error) {
 	// Check if the input is already a numeric Steam ID (e.g., "76561198012345678").
 	if strings.HasPrefix(input, "7656119") && len(input) == 17 {
-		out, err := stringToUint64(input)
+		out, err := strconv.ParseUint(input, 10, 0)
 		if err != nil {
 			return 0, err
 		}
@@ -72,7 +74,7 @@ func convertToSteamID(input string) (uint64, error) {
 	input = strings.TrimPrefix(input, "https://steamcommunity.com/id/")
 	input = strings.TrimSuffix(input, "/")
 
-	idRequest := apiUrl + key + "&vanityurl=" + input
+	idRequest := fmt.Sprintf(apiUrl, key, input)
 	jason, err := getJson(idRequest)
 	if err != nil {
 		return 0, err
@@ -90,29 +92,22 @@ func convertToSteamID(input string) (uint64, error) {
 func parseId(input []byte) (uint64, uint64) {
 	out := string(input)
 	out = strings.TrimPrefix(out, "{\"response\":{\"steamid\":\"")
-	steamId, err := stringToUint64(out[:16])
+	steamId, err := strconv.ParseUint(out[:17], 10, 0)
 	if err != nil {
 		fmt.Println(err)
 	}
 	out = strings.TrimPrefix(out[17:], "\",\"success\":")
-	success, err := stringToUint64(strings.TrimSuffix(out, "}}"))
+	success, err := strconv.ParseUint(strings.TrimSuffix(out, "}}"), 10, 0)
 	if err != nil {
 		fmt.Println(err)
 	}
 	return steamId, success
 }
 
-func stringToUint64(input string) (uint64, error) {
-	out, err := strconv.Atoi(input)
-	if err != nil {
-		return 0, err
-	}
-	return uint64(out), nil
-}
-
 func getPlayerItems(steamId uint64, appId uint64, contentId uint64) (string, error) {
-	url := "https://steamcommunity.com/profiles/" + strconv.Itoa(int(steamId)) + "/inventory/json/" + strconv.Itoa(int(appId)) + "/" + strconv.Itoa(int(contentId))
+	url := fmt.Sprintf("https://steamcommunity.com/inventory/%d/%d/%d", steamId, appId, contentId)
 	inv, err := getJson(url)
+	fmt.Println(url)
 
 	if err != nil {
 		return "", nil
