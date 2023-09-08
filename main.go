@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -14,6 +13,7 @@ import (
 
 var promptData string
 var templates *template.Template
+var items Items
 
 const (
 	appId     uint64 = 753
@@ -21,6 +21,22 @@ const (
 	key       string = "53487FD6BD8A52B4980A3E099BD5A435"
 	apiUrl    string = "http://api.steampowered.com/ISteamUser/ResolveVanityURL/v0001/?key=%s&vanityurl=%s"
 )
+
+type Items struct {
+	Assets       []struct{} `json:"assets"`
+	Descriptions []struct {
+		MarketHashName string `json:"market_hash_name"`
+		MarketName     string `json:"market_name"`
+		IconUrlLarge   string `json:"icon_url_large"`
+		Marketable     int64  `json:"marketable"`
+		price          string
+	} `json:"descriptions"`
+}
+
+type Price struct {
+	Success     bool   `json:"success"`
+	LowestPrice string `json:"lowest_price"`
+}
 
 func main() {
 	templates = template.Must(template.ParseFiles("templates/index.html"))
@@ -46,13 +62,17 @@ func homePage(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		inv, err := getPlayerItems(steamId, appId, contendId)
+		items, inventoryErr := getPlayerItems(steamId, appId, contendId)
 
-		if err != nil {
+		if inventoryErr != nil {
 			http.Error(w, "Inventory is not accessible", http.StatusBadRequest)
 		}
 
-		fmt.Println(inv)
+		if err := getPrices(items); err != nil {
+			http.Error(w, "Price is not accessible", http.StatusBadRequest)
+		}
+
+		fmt.Println(items.Descriptions[:])
 
 		if err := templates.ExecuteTemplate(w, "index.html", steamId); err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -104,16 +124,47 @@ func parseId(input []byte) (uint64, uint64) {
 	return steamId, success
 }
 
-func getPlayerItems(steamId uint64, appId uint64, contentId uint64) (string, error) {
+func getPlayerItems(steamId uint64, appId uint64, contentId uint64) (Items, error) {
 	url := fmt.Sprintf("https://steamcommunity.com/inventory/%d/%d/%d", steamId, appId, contentId)
-	inv, err := getJson(url)
-	fmt.Println(url)
+	inv, jsonError := getJson(url)
 
-	if err != nil {
-		return "", nil
+	fmt.Println(inv)
+
+	if jsonError != nil {
+		return items, jsonError
 	}
 
-	return formatJson(inv), nil
+	if unmarshalError := json.Unmarshal(inv, &items); unmarshalError != nil {
+		return items, unmarshalError
+	}
+
+	return items, nil
+}
+
+func getPrices(items Items) error {
+	for _, item := range items.Descriptions {
+		if item.Marketable == 1 {
+			url := fmt.Sprintf("http://steamcommunity.com/market/priceoverview/?currency=5&appid=%d&market_hash_name=%s", appId, item.MarketHashName)
+			overview, jsonErorr := getJson(url)
+			if jsonErorr != nil {
+				return jsonErorr
+			}
+
+			var price Price
+			if unmarshalError := json.Unmarshal(overview, &price); unmarshalError != nil {
+				return unmarshalError
+			}
+			if price.Success {
+				item.price = price.LowestPrice
+			} else {
+				return errors.New("couldn't get price")
+			}
+		} else {
+			item.price = "Unmarketable"
+		}
+	}
+
+	return nil
 }
 
 func getJson(url string) ([]byte, error) {
@@ -139,16 +190,4 @@ func getJson(url string) ([]byte, error) {
 	defer response.Body.Close()
 
 	return responseBody, nil
-}
-
-func formatJson(data []byte) string {
-	var out bytes.Buffer
-	err := json.Indent(&out, data, "", " ")
-
-	if err != nil {
-		fmt.Println(err)
-	}
-
-	d := out.Bytes()
-	return string(d)
 }
