@@ -72,7 +72,8 @@ func homePage(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "Price is not accessible", http.StatusBadRequest)
 		}
 
-		fmt.Println(items.Descriptions[:])
+		fmt.Println(items.Descriptions[0])
+		fmt.Println(items.Descriptions[0].price)
 
 		if err := templates.ExecuteTemplate(w, "index.html", steamId); err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -128,8 +129,6 @@ func getPlayerItems(steamId uint64, appId uint64, contentId uint64) (Items, erro
 	url := fmt.Sprintf("https://steamcommunity.com/inventory/%d/%d/%d", steamId, appId, contentId)
 	inv, jsonError := getJson(url)
 
-	fmt.Println(inv)
-
 	if jsonError != nil {
 		return items, jsonError
 	}
@@ -143,27 +142,25 @@ func getPlayerItems(steamId uint64, appId uint64, contentId uint64) (Items, erro
 
 func getPrices(items Items) error {
 	for _, item := range items.Descriptions {
-		if item.Marketable == 1 {
-			url := fmt.Sprintf("http://steamcommunity.com/market/priceoverview/?currency=5&appid=%d&market_hash_name=%s", appId, item.MarketHashName)
-			overview, jsonErorr := getJson(url)
-			if jsonErorr != nil {
-				return jsonErorr
-			}
+		hashName := strings.ReplaceAll(item.MarketHashName, " ", "+")
+		url := fmt.Sprintf("https://steamcommunity.com/market/priceoverview/?currency=5&appid=%d&market_hash_name=%s", appId, hashName)
+		fmt.Println(url)
+		overview, jsonErorr := getJson(url)
+		fmt.Println(overview)
+		if jsonErorr != nil {
+			return jsonErorr
+		}
 
-			var price Price
-			if unmarshalError := json.Unmarshal(overview, &price); unmarshalError != nil {
-				return unmarshalError
-			}
-			if price.Success {
-				item.price = price.LowestPrice
-			} else {
-				return errors.New("couldn't get price")
-			}
+		var price Price
+		if unmarshalError := json.Unmarshal(overview, &price); unmarshalError != nil {
+			return unmarshalError
+		}
+		if price.Success {
+			item.price = price.LowestPrice
 		} else {
 			item.price = "Unmarketable"
 		}
 	}
-
 	return nil
 }
 
