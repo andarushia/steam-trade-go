@@ -7,8 +7,11 @@ import (
 	"html/template"
 	"io"
 	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
+
+	"golang.org/x/net/proxy"
 )
 
 var promptData string
@@ -146,7 +149,6 @@ func getPrices(items Items) error {
 		url := fmt.Sprintf("https://steamcommunity.com/market/priceoverview/?currency=5&appid=%d&market_hash_name=%s", appId, hashName)
 		fmt.Println(url)
 		overview, jsonErorr := getJson(url)
-		fmt.Println(overview)
 		if jsonErorr != nil {
 			return jsonErorr
 		}
@@ -155,24 +157,37 @@ func getPrices(items Items) error {
 		if unmarshalError := json.Unmarshal(overview, &price); unmarshalError != nil {
 			return unmarshalError
 		}
-		if price.Success {
+		if price.Success && price.LowestPrice != "" {
 			item.price = price.LowestPrice
 		} else {
 			item.price = "Unmarketable"
 		}
+		fmt.Println(item.price)
 	}
 	return nil
 }
 
-func getJson(url string) ([]byte, error) {
-	request, err := http.NewRequest("GET", url, nil)
+func getJson(requestUrl string) ([]byte, error) {
+	request, err := http.NewRequest("GET", requestUrl, nil)
 
 	if err != nil {
 		return nil, err
 	}
 
+	tbProxyURL, err := url.Parse("socks5://127.0.0.1:9050")
+	if err != nil {
+		return nil, err
+	}
+
+	tbDialer, err := proxy.FromURL(tbProxyURL, proxy.Direct)
+	if err != nil {
+		return nil, err
+	}
+
+	tbTransport := &http.Transport{Dial: tbDialer.Dial}
+
 	request.Header.Set("Content-Type", "application/json; charset=utf-8")
-	client := &http.Client{}
+	client := &http.Client{Transport: tbTransport}
 	response, err := client.Do(request)
 
 	if err != nil {
